@@ -1,31 +1,32 @@
 'use strict'
 
-const path = require('path')
+const path = require('path');
 let fs = require('fs');
-const autoprefixer = require('autoprefixer')
-const HtmlWebpackPlugin = require('html-webpack-plugin')
-const miniCssExtractPlugin = require('mini-css-extract-plugin')
+const autoprefixer = require('autoprefixer');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
+const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
+const ImageMinimizerPlugin = require('image-minimizer-webpack-plugin');
+const sharp = require('sharp');
+
 const paths = {
     /* Path to source files directory */
     source: path.resolve(__dirname, './src/'),
     /* Path to built files directory */
     output: path.resolve(__dirname, './dist/'),
 };
-const favicon = path.resolve(paths.source, 'assets/images', 'favicon.ico');
+
+const favicon = path.resolve(paths.source, 'images', 'favicon.ico');
 const myHeader = fs.readFileSync(paths.source + '/views/header.html');
 const myBanner = fs.readFileSync(paths.source + '/views/banner.html');
 const myFooter = fs.readFileSync(paths.source + '/views/footer.html');
+
 module.exports = {
-    // stats: 'errors-only',
-    stats: {
-        errorDetails: true,
-        children: true
-    },
+    stats: 'errors-only',
     mode: 'development',
     entry: './src/index.js',
     output: {
-        filename: 'assets/js/main.bundle.js',
+        filename: 'js/main.bundle.js',
         path: paths.output,
         clean: true, // strege folderul dist inainte sa genereze altul
     },
@@ -40,28 +41,28 @@ module.exports = {
             filename: 'index.html',
             inject: 'body'
         }),
-        new miniCssExtractPlugin({
-            filename: 'assets/css/main.css'
+        new MiniCssExtractPlugin({
+            filename: 'css/main.css'
         }),
         new CopyWebpackPlugin({
             patterns: [
                 {
-                    from: path.resolve(paths.source, 'assets/images'),
-                    to: path.resolve(paths.output, 'assets/images'),
+                    from: path.resolve(paths.source, 'images'),
+                    to: path.resolve(paths.output, 'images'),
                     toType: 'dir',
                     globOptions: {
                         ignore: ['*.DS_Store', 'Thumbs.db'],
                     },
                 },
-                // {
-                //     from: path.resolve(paths.source, 'videos'),
-                //     to: path.resolve(paths.output, 'videos'),
-                //     toType: 'dir',
-                //     globOptions: {
-                //         ignore: ['*.DS_Store', 'Thumbs.db'],
-                //     },
-                // },
             ],
+        }),
+        new ImageMinimizerPlugin({
+            minimizerOptions: {
+                plugins: [
+                    ['imagemin-webp', { quality: 75 }],
+                ],
+            },
+            loader: false,
         }),
     ],
     module: {
@@ -71,30 +72,26 @@ module.exports = {
                 scheme: 'data',
                 type: 'asset/resource',
                 generator: {
-                    filename: 'assets/icons/[hash].svg'
+                    filename: 'icons/[hash].svg'
                 }
             },
             {
                 test: /\.woff($|\?)|\.woff2($|\?)|\.ttf($|\?)|\.eot($|\?)|\.svg($|\?)/i,
                 type: 'asset/resource',
                 generator: {
-                    //filename: 'fonts/[name]-[hash][ext][query]'
-                    filename: 'assets/fonts/[name][ext][query]'
+                    filename: 'fonts/[name][ext][query]'
                 }
             },
             {
                 test: /\.(scss)$/,
                 use: [
                     {
-                        // Extracts CSS for each JS file that includes CSS
-                        loader: miniCssExtractPlugin.loader
+                        loader: MiniCssExtractPlugin.loader
                     },
                     {
-                        // Interprets `@import` and `url()` like `import/require()` and will resolve them
                         loader: 'css-loader'
                     },
                     {
-                        // Loader for webpack to process CSS with PostCSS
                         loader: 'postcss-loader',
                         options: {
                             postcssOptions: {
@@ -105,7 +102,6 @@ module.exports = {
                         }
                     },
                     {
-                        // Loads a SASS/SCSS file and compiles it to CSS
                         loader: 'sass-loader',
                         options: {
                             sassOptions: {
@@ -120,19 +116,45 @@ module.exports = {
                 type: 'json'
             },
             {
-                test: /\.(jpe?g|png|webp)$/,
+                test: /\.(jpe?g|png)$/,
                 type: 'asset/resource',
                 generator: {
-                    filename: './assets/images/[name].[hash:6][ext]',
+                    filename: './images/[name].[hash:6][ext]',
                 },
+                use: [
+                    {
+                        loader: ImageMinimizerPlugin.loader,
+                        options: {
+                            filter: (source, sourcePath) => {
+                                // Optimize images larger than 1MB
+                                return source.byteLength > 1024 * 1024;
+                            },
+                            minimizerOptions: {
+                                plugins: [
+                                    ['imagemin-webp', { quality: 75 }],
+                                ],
+                            },
+                        },
+                    },
+                    {
+                        loader: 'sharp-loader',
+                        options: {
+                            name: '[name].[hash:6].[ext]',
+                            sizes: [
+                                { width: 320, rename: { suffix: '-mobile' } },
+                                { width: 768, rename: { suffix: '-tablet' } },
+                                { width: 1024, rename: { suffix: '-desktop' } },
+                            ],
+                        },
+                    },
+                ],
             },
             {
                 test: /\.(js|ts)$/,
                 loader: 'babel-loader',
                 exclude: '/node_modules/'
             },
-
         ]
     },
     performance: { hints: false, maxAssetSize: 100000, }
-}
+};
