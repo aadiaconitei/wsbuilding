@@ -16,7 +16,7 @@ document.querySelectorAll(".second");
 
 // 4 - Selectati elementele HTMl cu class ="third", dar doar din elementul ol.
 
-document.querySelector("ol .third");
+document.querySelectorAll("ol .third");
 
 // 5 - In sectiunea cu id= "container" afisati  "Salut!".
 
