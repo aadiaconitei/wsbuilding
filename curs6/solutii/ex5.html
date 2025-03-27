@@ -28,7 +28,7 @@
     <script>
         Promise.resolve()
             .then(function a() {
-                Promise.resolve().then(function c() { 
+                Promise.resolve().then(()=> { 
                     console.log('Promisiunea 1 este executata');
                 });
             })
